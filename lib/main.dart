@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:checker/string_resource.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -34,12 +35,10 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  bool isLoading = false;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: isLoading ? const CircularProgressIndicator() : _selectFileWidget(),
+      body: _selectFileWidget(),
     );
   }
 
@@ -79,7 +78,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<List<dynamic>> pickAndReadJsonFile() async {
+  Future<List<dynamic>> _pickAndReadJsonFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['json'],
@@ -123,64 +122,83 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       }
 
-      return [missingAyahMap, incorrectAyahTextMap, totalValue];
+      return [
+        missingAyahMap,
+        incorrectAyahTextMap,
+        decodedJson['id'],
+        totalValue
+      ];
     } else {
       return [];
     }
   }
 
   Future<void> _showDialog() async {
-    final result = await pickAndReadJsonFile();
-    isLoading = true;
-    setState(() {});
+    final result = await _pickAndReadJsonFile();
+
+    bool hasMissingAyah = false;
+    bool hasMissingText = false;
+    bool isCountEqual =
+        StringResource.verseCounts['${result[2]}'] == '${result.last}';
+
     String missingAyah = '';
     String incorrectAyah = '';
+
     if (result.first.isNotEmpty) {
       List<dynamic> missingEntries = result.first.entries
           .map((entry) => '${entry.key} -> ${entry.value}')
           .toList();
 
-      missingAyah = 'Missing ayah numbers: [${missingEntries.join(', ')}]';
+      missingAyah = 'Missing ayah numbers : [${missingEntries.join(', ')}]';
+      hasMissingAyah = true;
     } else {
-      missingAyah = 'No ayah numbers are missing.';
+      missingAyah = 'No ayah numbers are missing';
+      hasMissingAyah = false;
     }
     if (result[1].isNotEmpty) {
       List<dynamic> incorrectTextEntries =
           result[1].entries.map((entry) => '${entry.key}').toList();
       incorrectAyah =
-          'Ayahs with incorrect text: [${incorrectTextEntries.join(', ')}]';
+          'Ayahs with incorrect text : [${incorrectTextEntries.join(', ')}]';
+      hasMissingText = true;
     } else {
-      incorrectAyah = 'No issues with ayah text.';
+      incorrectAyah = 'No issues with ayah text';
+      hasMissingText = false;
     }
+
+    bool hasErrorOnEntry = hasMissingAyah || hasMissingText || !isCountEqual;
+
     Widget contentWidget() {
-      return SizedBox(
-        height: 100,
-        width: 400,
-        child: Center(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text('Total ayah count is ${result.last}'),
-              const SizedBox(
-                height: 5,
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          SizedBox(
+            height: 200,
+            width: 400,
+            child: Center(
+              child: Column(
+                children: <Widget>[
+                  _surahInfoWidget(result),
+                  _checkItemWidget(
+                    result,
+                    hasErrorOnEntry,
+                    missingAyah,
+                    incorrectAyah,
+                  ),
+                  _okButton(),
+                ],
               ),
-              Text(missingAyah),
-              const SizedBox(
-                height: 5,
-              ),
-              Text(incorrectAyah),
-              const SizedBox(
-                height: 5,
-              ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            top: -18,
+            left: 190,
+            child: _iconWidget(hasErrorOnEntry),
+          ),
+        ],
       );
     }
 
-    isLoading = false;
-    setState(() {});
     await showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -189,6 +207,105 @@ class _MyHomePageState extends State<MyHomePage> {
           child: contentWidget(),
         );
       },
+    );
+  }
+
+  Widget _surahInfoWidget(List<dynamic> result) {
+    return Container(
+      width: 400,
+      decoration: const BoxDecoration(
+        color: Colors.teal,
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(10),
+          topLeft: Radius.circular(10),
+        ),
+      ),
+      child: Column(
+        children: [
+          _commonSpaceWidget(),
+          _commonSpaceWidget(),
+          _commonSpaceWidget(),
+          _commonSpaceWidget(),
+          _commonTextWidget(
+              'Surah name : ${StringResource.englishMeaning['${result[2]}']}'),
+          _commonSpaceWidget(),
+          _commonTextWidget(
+              'Total ayah : ${StringResource.verseCounts['${result[2]}']}'),
+          _commonSpaceWidget(),
+          _commonSpaceWidget(),
+        ],
+      ),
+    );
+  }
+
+  Widget _checkItemWidget(
+    List<dynamic> result,
+    bool hasErrorOnEntry,
+    String missingAyah,
+    String incorrectAyah,
+  ) {
+    return Expanded(
+      child: Container(
+        width: 400,
+        decoration: BoxDecoration(
+          color: hasErrorOnEntry ? Colors.red : Colors.green,
+        ),
+        child: Center(
+          child: Column(
+            children: [
+              _commonSpaceWidget(),
+              _commonSpaceWidget(),
+              _commonTextWidget('Total ayah entered : ${result.last}'),
+              _commonSpaceWidget(),
+              _commonTextWidget(missingAyah),
+              _commonSpaceWidget(),
+              _commonTextWidget(incorrectAyah),
+              _commonSpaceWidget(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _iconWidget(bool hasErrorOnEntry) {
+    return Container(
+      height: 35,
+      width: 35,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: Center(
+        child: Icon(
+          hasErrorOnEntry ? Icons.close : Icons.check,
+          size: 25,
+          color: hasErrorOnEntry ? Colors.red : Colors.green,
+        ),
+      ),
+    );
+  }
+
+  Widget _commonSpaceWidget() {
+    return const SizedBox(
+      height: 5,
+    );
+  }
+
+  Widget _commonTextWidget(String text) {
+    const textStyle = TextStyle(color: Colors.white);
+    return Text(text, style: textStyle);
+  }
+
+  Widget _okButton() {
+    return SizedBox(
+      width: 400,
+      child: TextButton(
+        onPressed: () {
+          Navigator.pop(context);
+        },
+        child: const Text('Ok'),
+      ),
     );
   }
 }
