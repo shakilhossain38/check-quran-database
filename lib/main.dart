@@ -92,12 +92,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
       Map<String, dynamic> decodedJson = jsonDecode(fileContent);
 
-      int newValue = 0;
       int totalValue = 0;
 
       Map<int, int> missingAyahMap = {};
-
       Map<int, int> incorrectAyahTextMap = {};
+      Map<int, int> duplicateAyahMap = {};
+
+      int? previousAyahNumber;
+      int? expectedAyahNumber;
 
       for (var i = 0; i < decodedJson['ayat'].length; i++) {
         for (var j = 0; j < decodedJson['ayat'][i].length; j++) {
@@ -105,20 +107,31 @@ class _MyHomePageState extends State<MyHomePage> {
 
           int currentAyahNumber = decodedJson['ayat'][i][j]['verse_number'];
 
-          if (newValue + 1 != currentAyahNumber) {
-            if ((currentAyahNumber - (newValue + 1)) > 1) {
-              missingAyahMap[currentAyahNumber] = newValue + 1;
-            }
+          if (previousAyahNumber != null) {
+            expectedAyahNumber = previousAyahNumber + 1;
+          } else {
+            expectedAyahNumber = currentAyahNumber;
+          }
+
+          if (expectedAyahNumber != currentAyahNumber) {
+            missingAyahMap[expectedAyahNumber] = currentAyahNumber;
+
+            previousAyahNumber = currentAyahNumber;
+            continue;
           }
 
           if (decodedJson['ayat'][i][j]['text'].toString().isNotEmpty &&
               !decodedJson['ayat'][i][j]['text']
                   .toString()
                   .contains('$currentAyahNumber')) {
-            incorrectAyahTextMap[currentAyahNumber] = newValue + 1;
+            incorrectAyahTextMap[currentAyahNumber] = currentAyahNumber;
           }
 
-          newValue += 1;
+          if (previousAyahNumber == currentAyahNumber) {
+            duplicateAyahMap[currentAyahNumber] = currentAyahNumber;
+          }
+
+          previousAyahNumber = currentAyahNumber;
         }
       }
 
@@ -126,6 +139,7 @@ class _MyHomePageState extends State<MyHomePage> {
         missingAyahMap,
         incorrectAyahTextMap,
         decodedJson['id'],
+        duplicateAyahMap,
         totalValue
       ];
     } else {
@@ -138,11 +152,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
     bool hasMissingAyah = false;
     bool hasMissingText = false;
+    bool hasDuplicateText = false;
     bool isCountEqual =
         StringResource.verseCounts['${result[2]}'] == '${result.last}';
 
     String missingAyah = '';
     String incorrectAyah = '';
+    String duplicateAyah = '';
 
     if (result.first.isNotEmpty) {
       List<dynamic> missingEntries = result.first.entries
@@ -166,14 +182,25 @@ class _MyHomePageState extends State<MyHomePage> {
       hasMissingText = false;
     }
 
-    bool hasErrorOnEntry = hasMissingAyah || hasMissingText || !isCountEqual;
+    if (result[3].isNotEmpty) {
+      List<dynamic> duplicates =
+          result[3].entries.map((entry) => '${entry.key}').toList();
+      duplicateAyah = 'Ayahs with duplicate : [${duplicates.join(', ')}]';
+      hasMissingAyah = true;
+    } else {
+      duplicateAyah = 'No duplicate ayah';
+      hasMissingAyah = false;
+    }
+
+    bool hasErrorOnEntry =
+        hasMissingAyah || hasMissingText || !isCountEqual || hasDuplicateText;
 
     Widget contentWidget() {
       return Stack(
         clipBehavior: Clip.none,
         children: [
           SizedBox(
-            height: 200,
+            height: 230,
             width: 400,
             child: Center(
               child: Column(
@@ -184,6 +211,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     hasErrorOnEntry,
                     missingAyah,
                     incorrectAyah,
+                    duplicateAyah,
                   ),
                   _okButton(),
                 ],
@@ -243,6 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
     bool hasErrorOnEntry,
     String missingAyah,
     String incorrectAyah,
+    String duplicateAyah,
   ) {
     return Expanded(
       child: Container(
@@ -260,6 +289,8 @@ class _MyHomePageState extends State<MyHomePage> {
               _commonTextWidget(missingAyah),
               _commonSpaceWidget(),
               _commonTextWidget(incorrectAyah),
+              _commonSpaceWidget(),
+              _commonTextWidget(duplicateAyah),
               _commonSpaceWidget(),
             ],
           ),
