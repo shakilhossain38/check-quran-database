@@ -161,12 +161,12 @@ class _MyHomePageState extends State<MyHomePage> {
     String duplicateAyah = '';
 
     if (result.first.isNotEmpty) {
-      List<dynamic> missingEntries = result.first.entries
-          .map((entry) => '${entry.key} -> ${entry.value}')
-          .toList();
+      List<dynamic> missingEntries =
+          result.first.entries.map((entry) => '${entry.value}').toList();
 
       missingAyah = 'Missing ayah numbers : [${missingEntries.join(', ')}]';
       hasMissingAyah = true;
+      print("asdasdasdsa d$hasMissingAyah");
     } else {
       missingAyah = 'No ayah numbers are missing';
       hasMissingAyah = false;
@@ -186,14 +186,19 @@ class _MyHomePageState extends State<MyHomePage> {
       List<dynamic> duplicates =
           result[3].entries.map((entry) => '${entry.key}').toList();
       duplicateAyah = 'Ayahs with duplicate : [${duplicates.join(', ')}]';
-      hasMissingAyah = true;
+      hasDuplicateText = true;
     } else {
       duplicateAyah = 'No duplicate ayah';
-      hasMissingAyah = false;
+      hasDuplicateText = false;
     }
 
     bool hasErrorOnEntry =
         hasMissingAyah || hasMissingText || !isCountEqual || hasDuplicateText;
+    print("asdsdsadas ${hasMissingAyah}");
+    print("asdsdsadas111 ${hasMissingText}");
+    print("asdsdsadas222 ${hasDuplicateText}");
+    print("asdsdsadas444 ${isCountEqual}");
+    print("asdsdsadas333 ${hasErrorOnEntry}");
 
     Widget contentWidget() {
       return Stack(
